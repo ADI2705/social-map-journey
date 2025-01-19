@@ -54,10 +54,12 @@ const AdminPanel = ({
   const getCoordinatesFromAddress = async (address: string) => {
     try {
       setIsLoadingCoordinates(true);
+      console.log("Fetching coordinates for address:", address);
+      
       const response = await fetch(
         `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(
           address
-        )}&key=YOUR_OPENCAGE_API_KEY`
+        )}&key=6fe59da2447a48d2a4d9fa9a604dc7fd`
       );
       const data = await response.json();
       
