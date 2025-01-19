@@ -1,10 +1,9 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Profile } from '@/lib/types';
-
-// Set your Mapbox token here
-mapboxgl.accessToken = 'pk.eyJ1IjoibG92YWJsZSIsImEiOiJjbHMxYzBtYnQwMGF4MnFxcTRoNjVqZm1qIn0.O2Y9sZnF-K1k_KhC8VZ9pg';
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 interface MapProps {
   selectedProfile?: Profile;
@@ -14,13 +13,17 @@ const Map = ({ selectedProfile }: MapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const marker = useRef<mapboxgl.Marker | null>(null);
+  const [token, setToken] = useState('');
+  const [isMapInitialized, setIsMapInitialized] = useState(false);
 
-  useEffect(() => {
-    if (!mapContainer.current) return;
+  const initializeMap = () => {
+    if (!mapContainer.current || !token) return;
 
-    console.log('Initializing map...');
+    console.log('Initializing map with token...');
 
     try {
+      mapboxgl.accessToken = token;
+      
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
         style: 'mapbox://styles/mapbox/streets-v12',
@@ -28,18 +31,24 @@ const Map = ({ selectedProfile }: MapProps) => {
         zoom: 2
       });
 
+      setIsMapInitialized(true);
       console.log('Map initialized successfully');
     } catch (error) {
       console.error('Error initializing map:', error);
+      setIsMapInitialized(false);
     }
+  };
 
+  useEffect(() => {
     return () => {
-      map.current?.remove();
+      if (map.current) {
+        map.current.remove();
+      }
     };
   }, []);
 
   useEffect(() => {
-    if (!map.current || !selectedProfile) return;
+    if (!map.current || !selectedProfile || !isMapInitialized) return;
 
     console.log('Updating marker for profile:', selectedProfile);
 
@@ -65,7 +74,25 @@ const Map = ({ selectedProfile }: MapProps) => {
     } catch (error) {
       console.error('Error updating marker:', error);
     }
-  }, [selectedProfile]);
+  }, [selectedProfile, isMapInitialized]);
+
+  if (!isMapInitialized) {
+    return (
+      <div className="flex flex-col gap-4 p-4 border rounded-lg">
+        <p className="text-sm text-gray-600">
+          Please enter your Mapbox token to initialize the map. 
+          You can find your token in the Mapbox dashboard at https://mapbox.com/
+        </p>
+        <Input
+          type="text"
+          placeholder="Enter your Mapbox token"
+          value={token}
+          onChange={(e) => setToken(e.target.value)}
+        />
+        <Button onClick={initializeMap}>Initialize Map</Button>
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-full h-full">
