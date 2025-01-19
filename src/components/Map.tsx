@@ -1,98 +1,104 @@
-import React, { useEffect, useRef, useState } from 'react';
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
+import React, { useEffect, useRef } from 'react';
+import 'ol/ol.css';
+import Map from 'ol/Map';
+import View from 'ol/View';
+import TileLayer from 'ol/layer/Tile';
+import OSM from 'ol/source/OSM';
+import { fromLonLat } from 'ol/proj';
+import Feature from 'ol/Feature';
+import Point from 'ol/geom/Point';
+import { Vector as VectorLayer } from 'ol/layer';
+import { Vector as VectorSource } from 'ol/source';
+import { Style, Icon } from 'ol/style';
 import { Profile } from '@/lib/types';
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 
 interface MapProps {
   selectedProfile?: Profile;
 }
 
-const Map = ({ selectedProfile }: MapProps) => {
+const MapComponent = ({ selectedProfile }: MapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<mapboxgl.Map | null>(null);
-  const marker = useRef<mapboxgl.Marker | null>(null);
-  const [token, setToken] = useState('');
-  const [isMapInitialized, setIsMapInitialized] = useState(false);
-
-  const initializeMap = () => {
-    if (!mapContainer.current || !token) return;
-
-    console.log('Initializing map with token...');
-
-    try {
-      mapboxgl.accessToken = token;
-      
-      map.current = new mapboxgl.Map({
-        container: mapContainer.current,
-        style: 'mapbox://styles/mapbox/streets-v12',
-        center: [0, 0],
-        zoom: 2
-      });
-
-      setIsMapInitialized(true);
-      console.log('Map initialized successfully');
-    } catch (error) {
-      console.error('Error initializing map:', error);
-      setIsMapInitialized(false);
-    }
-  };
+  const map = useRef<Map | null>(null);
+  const vectorSource = useRef<VectorSource | null>(null);
+  const vectorLayer = useRef<VectorLayer<VectorSource> | null>(null);
 
   useEffect(() => {
+    if (!mapContainer.current) return;
+
+    console.log('Initializing map...');
+
+    // Initialize vector source and layer for markers
+    vectorSource.current = new VectorSource();
+    vectorLayer.current = new VectorLayer({
+      source: vectorSource.current,
+    });
+
+    // Create map
+    map.current = new Map({
+      target: mapContainer.current,
+      layers: [
+        new TileLayer({
+          source: new OSM(),
+        }),
+        vectorLayer.current,
+      ],
+      view: new View({
+        center: fromLonLat([0, 0]),
+        zoom: 2,
+      }),
+    });
+
+    console.log('Map initialized successfully');
+
     return () => {
       if (map.current) {
-        map.current.remove();
+        map.current.setTarget(undefined);
       }
     };
   }, []);
 
   useEffect(() => {
-    if (!map.current || !selectedProfile || !isMapInitialized) return;
+    if (!map.current || !selectedProfile || !vectorSource.current) return;
 
     console.log('Updating marker for profile:', selectedProfile);
 
     try {
-      // Remove existing marker
-      if (marker.current) {
-        marker.current.remove();
-      }
+      // Clear existing markers
+      vectorSource.current.clear();
 
-      // Add new marker
-      marker.current = new mapboxgl.Marker()
-        .setLngLat([selectedProfile.coordinates.lng, selectedProfile.coordinates.lat])
-        .addTo(map.current);
+      // Create marker feature
+      const markerFeature = new Feature({
+        geometry: new Point(fromLonLat([
+          selectedProfile.coordinates.lng,
+          selectedProfile.coordinates.lat
+        ])),
+      });
 
-      // Fly to location
-      map.current.flyTo({
-        center: [selectedProfile.coordinates.lng, selectedProfile.coordinates.lat],
+      // Add marker style
+      markerFeature.setStyle(
+        new Style({
+          image: new Icon({
+            anchor: [0.5, 1],
+            src: 'https://openlayers.org/en/latest/examples/data/icon.png',
+          }),
+        })
+      );
+
+      // Add marker to source
+      vectorSource.current.addFeature(markerFeature);
+
+      // Pan to location
+      map.current.getView().animate({
+        center: fromLonLat([selectedProfile.coordinates.lng, selectedProfile.coordinates.lat]),
         zoom: 14,
-        essential: true
+        duration: 1000,
       });
 
       console.log('Marker updated successfully');
     } catch (error) {
       console.error('Error updating marker:', error);
     }
-  }, [selectedProfile, isMapInitialized]);
-
-  if (!isMapInitialized) {
-    return (
-      <div className="flex flex-col gap-4 p-4 border rounded-lg">
-        <p className="text-sm text-gray-600">
-          Please enter your Mapbox token to initialize the map. 
-          You can find your token in the Mapbox dashboard at https://mapbox.com/
-        </p>
-        <Input
-          type="text"
-          placeholder="Enter your Mapbox token"
-          value={token}
-          onChange={(e) => setToken(e.target.value)}
-        />
-        <Button onClick={initializeMap}>Initialize Map</Button>
-      </div>
-    );
-  }
+  }, [selectedProfile]);
 
   return (
     <div className="relative w-full h-full">
@@ -101,4 +107,4 @@ const Map = ({ selectedProfile }: MapProps) => {
   );
 };
 
-export default Map;
+export default MapComponent;
