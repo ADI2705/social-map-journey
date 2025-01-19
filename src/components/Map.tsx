@@ -3,6 +3,9 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Profile } from '@/lib/types';
 
+// Set your Mapbox token here
+mapboxgl.accessToken = 'pk.eyJ1IjoibG92YWJsZSIsImEiOiJjbHMxYzBtYnQwMGF4MnFxcTRoNjVqZm1qIn0.O2Y9sZnF-K1k_KhC8VZ9pg';
+
 interface MapProps {
   selectedProfile?: Profile;
 }
@@ -15,15 +18,20 @@ const Map = ({ selectedProfile }: MapProps) => {
   useEffect(() => {
     if (!mapContainer.current) return;
 
-    // Initialize map
-    mapboxgl.accessToken = 'YOUR_MAPBOX_TOKEN'; // Replace with your token
-    
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/light-v11',
-      center: [0, 0],
-      zoom: 2
-    });
+    console.log('Initializing map...');
+
+    try {
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: [0, 0],
+        zoom: 2
+      });
+
+      console.log('Map initialized successfully');
+    } catch (error) {
+      console.error('Error initializing map:', error);
+    }
 
     return () => {
       map.current?.remove();
@@ -33,22 +41,30 @@ const Map = ({ selectedProfile }: MapProps) => {
   useEffect(() => {
     if (!map.current || !selectedProfile) return;
 
-    // Remove existing marker
-    if (marker.current) {
-      marker.current.remove();
+    console.log('Updating marker for profile:', selectedProfile);
+
+    try {
+      // Remove existing marker
+      if (marker.current) {
+        marker.current.remove();
+      }
+
+      // Add new marker
+      marker.current = new mapboxgl.Marker()
+        .setLngLat([selectedProfile.coordinates.lng, selectedProfile.coordinates.lat])
+        .addTo(map.current);
+
+      // Fly to location
+      map.current.flyTo({
+        center: [selectedProfile.coordinates.lng, selectedProfile.coordinates.lat],
+        zoom: 14,
+        essential: true
+      });
+
+      console.log('Marker updated successfully');
+    } catch (error) {
+      console.error('Error updating marker:', error);
     }
-
-    // Add new marker
-    marker.current = new mapboxgl.Marker()
-      .setLngLat([selectedProfile.coordinates.lng, selectedProfile.coordinates.lat])
-      .addTo(map.current);
-
-    // Fly to location
-    map.current.flyTo({
-      center: [selectedProfile.coordinates.lng, selectedProfile.coordinates.lat],
-      zoom: 14,
-      essential: true
-    });
   }, [selectedProfile]);
 
   return (
